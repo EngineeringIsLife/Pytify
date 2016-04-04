@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import curses
 from curses import panel
 from strategy import get_pytify_class_by_platform

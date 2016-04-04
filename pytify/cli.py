@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 import pytifylib
 from strategy import get_pytify_class_by_platform
 from menu import Menu
@@ -59,20 +60,33 @@ class App:
         print('#    <http://www.github.com/bjarneo/Pytify>    #')
         print('################################################')
 
+    def _get_input(self, message):
+        if sys.version_info >= (3,0):
+            result = input(message + '\n> ')
+        else:
+            result = raw_input(message + '\n> ')
+        return result
+
     def interaction(self):
         self.intro()
 
         while 1:
-            if sys.version_info >= (3, 0):
-                search_input = input('What artist / song are you searching for?\n> ')
-            else:
-                search_input = raw_input('What artist / song are you searching for?\n> ')
+            search_type = self._get_input('Are you searching for (p)laylist or (a)rtist/(s)ong?')
+            if search_type in 'asAS':
+                search_input = self._get_input('What artist / song are you searching for?')
+                if search_input:
+                    search = self.pytify.search(search_input)
 
-            if search_input:
-                search = self.pytify.search(search_input)
+                    if search is not False:
+                        self.menu(list=self.pytify.list())
 
-                if search is not False:
-                    self.menu(list=self.pytify.list())
+            elif search_type in 'pP':
+                search_input = self._get_input('What playlist are you searching for?')
+                if search_input:
+                    search = self.pytify.search_playlist(search_input)
+
+                    if search is not False:
+                        self.menu(list=self.pytify.list_playlist())
 
 
 def main():
@@ -81,3 +95,6 @@ def main():
 
     except KeyboardInterrupt:
         print('\n Closing application...\n')
+
+if __name__ == "__main__":
+    main()

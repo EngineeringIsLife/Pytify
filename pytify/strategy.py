@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from sys import platform
 
 def get_pytify_class_by_platform():

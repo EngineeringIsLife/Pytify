@@ -3,4 +3,5 @@
 *.swp
 *.swu
 dist/
+build/
 pytify.egg-info/
