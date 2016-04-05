@@ -2,36 +2,26 @@
 import requests
 import sys
 
-
-# Fetch songs with spotify api
-class Pytifylib:
+class SearchRequest:
     # Api url
-    url = 'https://api.spotify.com/v1/search?q=%s&type=track,artist&limit=%d'
-    url_playlist = 'https://api.spotify.com/v1/search?q=%s&type=playlist&limit=%d'
+    url = ''
 
-    # hold songs
-    _songs = {}
+    # hold received items
+    _items = {}
 
-    # hold playlists
-    _playlists = {}
-
-    # current mode (playlist or artist/song)
-    _mode = 'p'
-
-    # history
+    # history of last requests
     _history = []
 
     # limit output songs
     _limit = 15
 
-    # Search for song / album / artist
+    # Search for item
     def search(self, query):
         try:
             search = '+'.join(query.split())
             url = self.url % (search, self._limit)
 
             try:
-                #print "Suche ", self.url % search
                 response = requests.get(url)
             except requests.exceptions.Timeout:
                 response = requests.get(url)
@@ -45,9 +35,7 @@ class Pytifylib:
 
             self._history.append(query)
 
-            self.set_songs(data=response.json())
-
-            self._mode = 'a'
+            self.set_items(data=response.json())
 
             return True
         except StandardError:
@@ -55,31 +43,57 @@ class Pytifylib:
 
             return False
 
-    def search_playlist(self, query):
-        try:
-            search = '+'.join(query.split())
-            url = self.url_playlist % (search, self._limit)
-            print url
-            try:
-                response = requests.get(url)
-            except requests.exceptions.Timeout:
-                response = requests.get(url)
-            except requests.exceptions.TooManyRedirecets:
-                print('Something wrong with your requests. Try again.')
-                return False
-            except requests.exceptions.RequestException as e:
-                print (e)
-                sys.exit(1)
+    def set_items(data):
+        raise NotImplementedError()
 
-            self._history.append(query)
-            self.set_playlists(data=response.json())
-            self._mode = 'p'
-            return True
-        except StandardError:
-            print('Search went wrong? Please try again.')
-            return False
+    def get_items(self):
+        return self._items
 
-    def set_songs(self, data):
+    def list(self):
+        raise NotImplementedError()
+
+
+class SearchPlaylist(SearchRequest):
+    # Api url
+    url = 'https://api.spotify.com/v1/search?q=%s&type=playlist&limit=%d'
+
+    def set_items(self, data):
+        for index, playlist in enumerate(data['playlists']['items']):
+            #print "Rohdaten: ", playlist
+
+            playlist_name = playlist['name'][:30].encode('utf-8')
+
+            self._items[index + 1] = {
+                'href':playlist['uri'],
+                'name':playlist_name,
+                'tracks':playlist['tracks']['total']
+            }
+
+    def list(self):
+        list = []
+        space = '{0:3} | {1:45} | {2:10}'
+        list.append(space.format('#', 'Name', 'Tracks'))
+        list.append(space.format(
+            '-' * 3,
+            '-' * 45,
+            '-' * 10
+        ))
+
+        for i in self.get_items():
+            list.append(space.format(
+                '%d.' % i,
+                '%s' % self.get_items()[i]['name'],
+                '%d' % self.get_items()[i]['tracks']
+            ))
+
+        return list
+
+
+class SearchSongs(SearchRequest):
+    # Api url
+    url = 'https://api.spotify.com/v1/search?q=%s&type=track,artist&limit=%d'
+
+    def set_items(self, data):
         for index, song in enumerate(data['tracks']['items']):
             if index == self._limit:
                 break
@@ -93,31 +107,12 @@ class Pytifylib:
                 song_name = song['name'][:30].encode('utf-8')
                 album_name = song['album']['name'][:30].encode('utf-8')
 
-            self._songs[index + 1] = {
+            self._items[index + 1] = {
                 'href': song['uri'],
                 'artist': artist_name,
                 'song': song_name,
                 'album': album_name
             }
-
-    def set_playlists(self, data):
-        for index, playlist in enumerate(data['playlists']['items']):
-            #print "Rohdaten: ", playlist
-
-            playlist_name = playlist['name'][:30].encode('utf-8')
-
-            self._playlists[index + 1] = {
-                'href':playlist['uri'],
-                'name':playlist_name,
-                'tracks':playlist['tracks']['total']
-            }
-
-           
-    def get_songs(self):
-        return self._songs
-
-    def get_playlists(self):
-        return self._playlists
 
     # List all. Limit if needed
     def list(self):
@@ -134,55 +129,52 @@ class Pytifylib:
             '-' * 30
         ))
 
-        for i in self.get_songs():
+        for i in self.get_items():
             list.append(space.format(
                 '%d.' % i,
-                '%s' % self.get_songs()[i]['artist'],
-                '%s' % self.get_songs()[i]['song'],
-                '%s' % self.get_songs()[i]['album']
+                '%s' % self.get_items()[i]['artist'],
+                '%s' % self.get_items()[i]['song'],
+                '%s' % self.get_items()[i]['album']
             ))
 
         return list
 
-    def list_playlist(self):
-        list = []
-        space = '{0:3} | {1:45} | {2:10}'
-        list.append(space.format('#', 'Name', 'Tracks'))
-        list.append(space.format(
-            '-' * 3,
-            '-' * 45,
-            '-' * 10
-        ))
 
-        for i in self.get_playlists():
-            list.append(space.format(
-                '%d.' % i,
-                '%s' % self.get_playlists()[i]['name'],
-                '%d' % self.get_playlists()[i]['tracks']
-            ))
 
-        return list
+# Fetch songs with spotify api
+class Pytifylib:
 
-    def _get_song_uri_at_index(self, index):
-        if self._mode is 'a':
-            return str(self._songs[index]['href'])
-        elif self._mode is 'p':
-            return str(self._playlists[index]['href'])
+    search_pl = SearchPlaylist()
+    search_so = SearchSongs()
+    search = search_pl
 
-    def _get_song_name_at_index(self, index):
-        return str('%s - %s' % (self._songs[index]['artist'], self._songs[index]['song']))
+    def _get_item_uri_at_index(self, index):
+        return str(self.search._items[index]['href'])
+
+    def search_playlist(self, request):
+        self.search = self.search_pl
+        return self.search.search(request)
+
+    def search_song(self, request):
+        self.search = self.search_so
+        return self.search.search(request)
+    #def _get_song_name_at_index(self, index):
+        #return str('%s - %s' % (self._songs[index]['artist'], self._songs[index]['song']))
+
+    def list(self):
+        return self.search.list()
 
     def listen(self, index):
         raise NotImplementedError()
 
     def print_history(self):
-        if len(self._history) > 5:
-            self._history.pop(0)
+        if len(self.search._history) > 5:
+            self.search._history.pop(0)
 
         print('\nLast five search results:')
 
-        for song in self._history:
-            print(song)
+        for item in self.search._history:
+            print(item)
 
     def next(self):
         raise NotImplementedError()
@@ -195,3 +187,4 @@ class Pytifylib:
 
     def pause(self):
         raise NotImplementedError()
+

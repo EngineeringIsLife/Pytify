@@ -29,7 +29,7 @@ class Darwin(Pytifylib):
         ])
 
     def listen(self, index):
-        uri = self._get_song_uri_at_index(index)
+        uri = self._get_item_uri_at_index(index)
         self._make_osascript_call('tell app "Spotify" to play track "%s"' % uri)
 
     def next(self):

@@ -71,22 +71,21 @@ class App:
         self.intro()
 
         while 1:
+            search = False
             search_type = self._get_input('Are you searching for (p)laylist or (a)rtist/(s)ong?')
             if search_type in 'asAS':
                 search_input = self._get_input('What artist / song are you searching for?')
                 if search_input:
-                    search = self.pytify.search(search_input)
-
-                    if search is not False:
-                        self.menu(list=self.pytify.list())
+                    search = self.pytify.search_song(search_input)
 
             elif search_type in 'pP':
                 search_input = self._get_input('What playlist are you searching for?')
                 if search_input:
                     search = self.pytify.search_playlist(search_input)
 
-                    if search is not False:
-                        self.menu(list=self.pytify.list_playlist())
+            if search is not False:
+                self.menu(list=self.pytify.list())
+                print "Liste: ", list
 
 
 def main():
